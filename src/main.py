@@ -1,50 +1,54 @@
-#!/usr/bin/env python3
-"""Agentic Dev Platform MVP entrypoint: dual-graph loop + CLI demo + optional FastAPI."""
+"""MVP entrypoint: event-driven dual-graph loop with real workers."""
 import asyncio
-import json
 import sys
 from pathlib import Path
 
-from src.event_bus import EventBus
-from src.graph_store import GraphStore
-from src.hitl_gate import HITLGate
-from src.orchestrator import Orchestrator
-from src.vlm_client import VLMClient
-from src.workers import CollectorWorker, PRDWorker, ReviewerWorker
+from .event_bus import Event, EventBus, EventType
+from .graph_store import GraphStore
+from .hitl_gate import HITLGate
+from .orchestrator import Orchestrator
 
 
-async def demo():
+async def demo(store: GraphStore, bus: EventBus, orch: Orchestrator):
+    # start bus loop in background
+    bus_task = asyncio.create_task(bus.run())
+
+    task_id = store.create_task("demo goal: mobile login defect -> PRD + review + dashboard")
+    store.log("orchestrator", "started", {"task_id": task_id})
+
+    # seed: kick off with a graph mutation (empty exploration -> collector)
+    await bus.publish(Event(EventType.GRAPH_MUTATION, {"task_id": task_id}))
+
+    # let the loop run for a bit
+    await asyncio.sleep(2)
+
+    task = store.get_task(task_id)
+    print("\nDemo complete.")
+    print(" - task:", task)
+    print(" - assets:", store.query_assets())
+    print(" - explorations:", len(store.get_explorations(task_id)))
+    for r in store.get_explorations(task_id):
+        print(f"   ({r['node_type']}) {r['content']}")
+    print(" - outputs: output/PRD.md, output/dashboard.md, agentic.db")
+
+    bus_task.cancel()
+    try:
+        await bus_task
+    except asyncio.CancelledError:
+        pass
+
+
+async def main():
     store = GraphStore()
     bus = EventBus()
-    gate = HITLGate(store, auto_approve_demo=True)
-    vlm = VLMClient()
-    collector = CollectorWorker(store, vlm)
-    prd = PRDWorker(store)
-    reviewer = ReviewerWorker(store)
-    orch = Orchestrator(store, bus, gate, collector, prd, reviewer)
-
-    print("=== Agentic Dev Platform Demo (Grok build) ===\n")
-    task_id = await orch.run_task("Fix mobile login errors and layout shift")
-    print(f"\nDemo complete. Task ID: {task_id}")
-    print("Outputs:")
-    print(" -", Path("output") / "PRD.md")
-    print(" -", store.db_path)
-    snap = store.dashboard_snapshot()
-    print(json.dumps(snap, indent=2)[:800])
-    # Write dashboard data for GitHub Pages
-    Path("web/data.json").parent.mkdir(exist_ok=True)
-    Path("web/data.json").write_text(json.dumps(snap, indent=2))
-    print(" - web/data.json (dashboard snapshot)")
-
-
-def main():
+    gate = HITLGate(bus)
+    orch = Orchestrator(store, bus, gate)
     if "--demo" in sys.argv:
-        asyncio.run(demo())
+        await demo(store, bus, orch)
     else:
         print("Usage: python3 -m src.main --demo")
-        store = GraphStore()
         print("SQLite schema initialized at", store.db_path)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

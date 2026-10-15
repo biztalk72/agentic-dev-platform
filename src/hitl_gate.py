@@ -1,31 +1,60 @@
-"""Human-in-the-loop gate: pauses irreversible intents for approval."""
+"""HITL gate: pauses tagged tool calls, prompts for approval, resumes on yes."""
 import asyncio
-from src.graph_store import GraphStore
+from dataclasses import dataclass
+from typing import Optional
 
-GATED_KEYWORDS = ("deploy", "schema change", "payment", "authentication", "auth")
+from .event_bus import Event, EventBus, EventType
+
+
+# Operations that require human approval (configurable per project)
+DEFAULT_GATED_OPS = {"deploy", "schema_change", "payment_call", "auth_call"}
+
+
+@dataclass
+class GateRequest:
+    intent: str
+    operation: str
+    task_id: int
+    timeout_sec: int = 600  # 10 min default
 
 
 class HITLGate:
-    def __init__(self, store: GraphStore, timeout_sec: int = 600, auto_approve_demo: bool = True):
-        self.store = store
-        self.timeout_sec = timeout_sec
-        self.auto_approve_demo = auto_approve_demo
+    def __init__(self, bus: EventBus, gated_ops: Optional[set] = None):
+        self.bus = bus
+        self.gated_ops = gated_ops or DEFAULT_GATED_OPS
+        self._pending: dict[int, asyncio.Future] = {}  # task_id -> Future[bool]
+        bus.subscribe(EventType.GATE_RESPONSE, self._on_response)
 
-    def requires_gate(self, intent: str) -> bool:
-        lower = intent.lower()
-        return any(k in lower for k in GATED_KEYWORDS)
+    def requires_gate(self, operation: str) -> bool:
+        return operation in self.gated_ops
 
-    async def ask(self, intent: str) -> bool:
-        print(f"\n[GATE] Intent: {intent}. Approve? [y/N] ", end="", flush=True)
-        if self.auto_approve_demo:
-            # Demo mode: log and auto-approve for non-gated; gated ones still prompt but default deny on timeout
-            try:
-                line = await asyncio.wait_for(asyncio.to_thread(input), timeout=self.timeout_sec)
-                approved = line.strip().lower() == "y"
-            except asyncio.TimeoutError:
-                approved = False
-                print("\n[GATE] Timeout -> denied")
-        else:
-            approved = True
-        self.store.log("hitl", "decision", {"intent": intent, "approved": approved})
+    async def ask(self, req: GateRequest) -> bool:
+        """Pause execution, prompt for approval, return True if approved."""
+        loop = asyncio.get_running_loop()
+        fut: asyncio.Future[bool] = loop.create_future()
+        self._pending[req.task_id] = fut
+
+        await self.bus.publish(Event(EventType.GATE_REQUEST, {
+            "task_id": req.task_id,
+            "intent": req.intent,
+            "operation": req.operation,
+        }))
+
+        print(f"\n[GATE] Intent: {req.intent} (op={req.operation}). Approve? [y/N] ", end="", flush=True)
+        try:
+            approved = await asyncio.wait_for(fut, timeout=req.timeout_sec)
+        except asyncio.TimeoutError:
+            approved = False
+            print("\n[GATE] Timeout -> denied, logged to audit.")
+        finally:
+            self._pending.pop(req.task_id, None)
         return approved
+
+    def respond(self, task_id: int, approved: bool):
+        """Called by CLI `approve` command or UI."""
+        fut = self._pending.get(task_id)
+        if fut and not fut.done():
+            fut.set_result(approved)
+
+    async def _on_response(self, event: Event):
+        self.respond(event.payload["task_id"], bool(event.payload.get("approved")))
