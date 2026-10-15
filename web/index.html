@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic Dev Platform - Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #c9d1d9; padding: 24px; }
+  h1 { font-size: 1.5rem; margin-bottom: 8px; }
+  .sub { color: #8b949e; margin-bottom: 24px; font-size: 0.9rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+  .card h2 { font-size: 1rem; margin-bottom: 12px; color: #58a6ff; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #21262d; }
+  th { color: #8b949e; font-weight: 500; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
+  .tag-running { background: #1f6feb33; color: #58a6ff; }
+  .tag-completed { background: #23863633; color: #3fb950; }
+  .tag-asset { background: #8957e533; color: #a371f7; }
+  #status { margin-top: 16px; color: #8b949e; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<h1>Agentic Dev Platform</h1>
+<p class="sub">Dual-graph autonomous dev loop &mdash; Asset Graph + Exploration Graph &mdash; Grok demo build</p>
+<div class="grid">
+  <div class="card">
+    <h2>Assets (permanent graph)</h2>
+    <table><thead><tr><th>ID</th><th>Type</th><th>Name</th><th>Parent</th></tr></thead><tbody id="assets"></tbody></table>
+  </div>
+  <div class="card">
+    <h2>Tasks</h2>
+    <table><thead><tr><th>ID</th><th>Status</th><th>Goal</th></tr></thead><tbody id="tasks"></tbody></table>
+  </div>
+</div>
+<p id="status">Loading...</p>
+<script>
+fetch('data.json').then(r => r.json()).then(data => {
+  const assets = document.getElementById('assets);
+  data.assets.forEach(a => {
+    assets.innerHTML += `<tr><td>${a.id}</td><td><span class="tag tag-asset">${a.type}</span></td><td>${a.name}</td><td>${a.parent_id ?? '-'}</td></tr>`;
+  });
+  const tasks = document.getElementById('tasks);
+  data.tasks.forEach(t => {
+    tasks.innerHTML += `<tr><td>${t.id}</td><td><span class="tag tag-${t.status}">${t.status}</span></td><td>${t.goal}</td></tr>`;
+  });
+  document.getElementById('status').textContent = `Loaded ${data.assets.length} assets, ${data.tasks.length} tasks.`;
+}).catch(e => {
+  document.getElementById('status').textContent = 'Run the demo first: python3 -m src.main --demo';
+});
+</script>
+</body>
+</html>
