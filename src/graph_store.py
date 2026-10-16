@@ -126,7 +126,47 @@ class GraphStore:
         row = self.con.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
         return dict(row) if row else None
 
+    def list_tasks(self) -> list[dict]:
+        rows = self.con.execute(
+            "SELECT id, status, goal FROM tasks ORDER BY id"
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def snapshot(self) -> dict:
+        """Dashboard payload: assets, tasks, and exploration nodes."""
+        explorations = []
+        for task in self.list_tasks():
+            for row in self.get_explorations(task["id"]):
+                explorations.append({
+                    "id": row["id"],
+                    "task_id": row["task_id"],
+                    "node_type": row["node_type"],
+                    "content": row["content"],
+                    "edge_type": row["edge_type"],
+                    "asset_anchor_id": row["asset_anchor_id"],
+                })
+        return {
+            "assets": [
+                {
+                    "id": row["id"],
+                    "type": row["type"],
+                    "name": row["name"],
+                    "parent_id": row["parent_id"],
+                }
+                for row in self.query_assets()
+            ],
+            "tasks": self.list_tasks(),
+            "explorations": explorations,
+        }
+
     # ── Audit ────────────────────────────────────────────────────────────
+    def has_log(self, actor: str, action: str) -> bool:
+        row = self.con.execute(
+            "SELECT 1 FROM audit_log WHERE actor=? AND action=? LIMIT 1",
+            (actor, action),
+        ).fetchone()
+        return row is not None
+
     def log(self, actor: str, action: str, detail: Any = None):
         self.con.execute(
             "INSERT INTO audit_log(actor,action,detail_json,created_at) VALUES(?,?,?,?)",

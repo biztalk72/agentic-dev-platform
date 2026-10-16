@@ -1,7 +1,4 @@
 """Orchestrator: sole intent generator. Reads exploration graph, dispatches intents."""
-import asyncio
-from typing import Any
-
 from .event_bus import Event, EventBus, EventType
 from .graph_store import GraphStore
 from .hitl_gate import GateRequest, HITLGate
@@ -13,7 +10,6 @@ class Orchestrator:
         self.store = store
         self.bus = bus
         self.gate = gate
-        bus subscribe if False else None  # placeholder to keep import order clean
         bus.subscribe(EventType.GRAPH_MUTATION, self._on_mutation)
 
     async def _on_mutation(self, event: Event):
@@ -38,7 +34,7 @@ class Orchestrator:
             intents.append({"worker": "prd", "intent": "draft PRD from collected facts", "op": "write_file"})
         if has_finding and not has_prd:
             intents.append({"worker": "reviewer", "intent": "lineage-check PRD against findings", "op": "review"})
-        if has_prd:
+        if has_prd and not self.store.has_log("dashboard", "rendered"):
             intents.append({"worker": "dashboard", "intent": "render project state from asset graph", "op": "render"})
         return intents
 

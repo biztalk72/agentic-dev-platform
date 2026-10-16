@@ -34,20 +34,56 @@
     <h2>Tasks</h2>
     <table><thead><tr><th>ID</th><th>Status</th><th>Goal</th></tr></thead><tbody id="tasks"></tbody></table>
   </div>
+  <div class="card">
+    <h2>Explorations</h2>
+    <table><thead><tr><th>ID</th><th>Task</th><th>Type</th><th>Content</th><th>Edge</th></tr></thead><tbody id="explorations"></tbody></table>
+  </div>
 </div>
 <p id="status">Loading...</p>
 <script>
-fetch('data.json').then(r => r.json()).then(data => {
-  const assets = document.getElementById('assets);
-  data.assets.forEach(a => {
-    assets.innerHTML += `<tr><td>${a.id}</td><td><span class="tag tag-asset">${a.type}</span></td><td>${a.name}</td><td>${a.parent_id ?? '-'}</td></tr>`;
+function cell(value) {
+  const td = document.createElement('td');
+  td.textContent = value == null || value === '' ? '-' : String(value);
+  return td;
+}
+function tagCell(value, kind) {
+  const td = document.createElement('td');
+  const span = document.createElement('span');
+  span.className = 'tag tag-' + kind;
+  span.textContent = value == null || value === '' ? '-' : String(value);
+  td.appendChild(span);
+  return td;
+}
+function addRow(tbody, cells) {
+  const tr = document.createElement('tr');
+  cells.forEach((item) => tr.appendChild(item));
+  tbody.appendChild(tr);
+}
+fetch('data.json').then((response) => {
+  if (!response.ok) throw new Error(String(response.status));
+  return response.json();
+}).then((data) => {
+  const assets = data.assets || [];
+  const tasks = data.tasks || [];
+  const explorations = data.explorations || [];
+  assets.forEach((row) => {
+    addRow(document.getElementById('assets'), [
+      cell(row.id), tagCell(row.type, 'asset'), cell(row.name), cell(row.parent_id),
+    ]);
   });
-  const tasks = document.getElementById('tasks);
-  data.tasks.forEach(t => {
-    tasks.innerHTML += `<tr><td>${t.id}</td><td><span class="tag tag-${t.status}">${t.status}</span></td><td>${t.goal}</td></tr>`;
+  tasks.forEach((row) => {
+    addRow(document.getElementById('tasks'), [
+      cell(row.id), tagCell(row.status, row.status || 'running'), cell(row.goal),
+    ]);
   });
-  document.getElementById('status').textContent = `Loaded ${data.assets.length} assets, ${data.tasks.length} tasks.`;
-}).catch(e => {
+  explorations.forEach((row) => {
+    addRow(document.getElementById('explorations'), [
+      cell(row.id), cell(row.task_id), cell(row.node_type), cell(row.content), cell(row.edge_type),
+    ]);
+  });
+  document.getElementById('status').textContent =
+    'Loaded ' + assets.length + ' assets, ' + tasks.length + ' tasks, ' + explorations.length + ' explorations.';
+}).catch(() => {
   document.getElementById('status').textContent = 'Run the demo first: python3 -m src.main --demo';
 });
 </script>

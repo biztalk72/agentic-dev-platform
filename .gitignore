@@ -1,0 +1,5 @@
+__pycache__/
+*.py[cod]
+agentic.db
+output/
+web/data.json
