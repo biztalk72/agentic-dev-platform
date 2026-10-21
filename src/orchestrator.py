@@ -17,8 +17,22 @@ class Orchestrator:
         if task_id is None:
             return
         intents = self.plan(task_id)
+        if not intents:
+            await self._maybe_complete(task_id)
+            return
         for intent in intents:
             await self._dispatch(task_id, intent)
+
+    async def _maybe_complete(self, task_id: int):
+        """No pending intents + dashboard rendered -> archive and mark completed."""
+        task = self.store.get_task(task_id)
+        if not task or task["status"] != "running":
+            return
+        if not self.store.has_log("dashboard", "rendered"):
+            return
+        self.store.archive_task(task_id)
+        self.store.log("orchestrator", "task_completed", {"task_id": task_id})
+        await self.bus.publish(Event(EventType.TASK_COMPLETED, {"task_id": task_id}))
 
     def plan(self, task_id: int) -> list[dict]:
         """Read exploration graph + shared todo, emit intents in dependency order."""
