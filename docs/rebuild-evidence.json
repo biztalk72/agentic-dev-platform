@@ -1,0 +1,76 @@
+{
+  "id": "agentic-dev-platform",
+  "manifests": [
+    "requirements.txt"
+  ],
+  "locks": [],
+  "packages": [],
+  "python": [],
+  "commands": [],
+  "providers": [],
+  "env_names": [
+    "VLM_PROVIDER"
+  ],
+  "portability": [],
+  "validation": [
+    {
+      "path": "src/event_bus.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "src/graph_store.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "src/hitl_gate.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "src/main.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "src/orchestrator.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "src/vlm_client.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "src/workers.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    }
+  ],
+  "languages": {
+    ".py": 7,
+    ".md": 5,
+    ".yml": 1,
+    ".sh": 1,
+    ".txt": 1,
+    ".html": 1
+  },
+  "services": [],
+  "description": "Multi-agent development platform (MVP) with:",
+  "progress_sources": [
+    "PRD.md",
+    "architecture.md",
+    "design.md"
+  ],
+  "top_dirs": {
+    "src": 7,
+    ".github": 1,
+    "skills": 1,
+    "web": 1
+  },
+  "links": [],
+  "make_targets": [],
+  "description_source": "README.md"
+}

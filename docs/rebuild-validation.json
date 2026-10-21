@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-19",
+  "scope": "static checks; not full build or tests",
+  "results": [
+    {
+      "path": "src/event_bus.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "src/graph_store.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "src/hitl_gate.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "src/main.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "src/orchestrator.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "src/vlm_client.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    },
+    {
+      "path": "src/workers.py",
+      "check": "Python AST syntax",
+      "status": "pass"
+    }
+  ]
+}

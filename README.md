@@ -21,7 +21,10 @@ Or manually:
 ```bash
 pip3 install -r requirements.txt
 python3 -m src.main --demo
+python3 -m http.server 8765 --directory web
 ```
+
+The demo writes `web/data.json`. Open `http://127.0.0.1:8765/` to read the asset, task, and exploration tables. `web/data.json` is generated and is not committed.
 
 ## Docs
 
