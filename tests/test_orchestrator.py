@@ -21,28 +21,40 @@ def test_plan_starts_with_collector(tmp_path):
     assert [i["worker"] for i in intents] == ["collector"]
 
 
-def test_plan_dispatches_prd_after_facts(tmp_path):
+def test_plan_dispatches_analyst_after_facts(tmp_path):
     orch, store, _ = make_orchestrator(tmp_path)
     task_id = store.create_task("goal")
     store.add_exploration(task_id, "fact", "log: errors on /login", None, "yields", None)
     intents = orch.plan(task_id)
-    assert [i["worker"] for i in intents] == ["prd"]
+    assert [i["worker"] for i in intents] == ["analyst"]
 
 
-def test_plan_dispatches_reviewer_for_non_prd_finding(tmp_path):
+def test_plan_dispatches_prd_after_analysis(tmp_path):
     orch, store, _ = make_orchestrator(tmp_path)
     task_id = store.create_task("goal")
     store.add_exploration(task_id, "fact", "log: errors", None, "yields", None)
     store.add_exploration(task_id, "finding", "analyst: defect likely", None, "yields", None)
     intents = orch.plan(task_id)
-    assert [i["worker"] for i in intents] == ["reviewer"]
+    assert [i["worker"] for i in intents] == ["prd"]
 
 
-def test_plan_dispatches_dashboard_after_prd(tmp_path):
+def test_plan_dispatches_reviewer_after_prd(tmp_path):
     orch, store, _ = make_orchestrator(tmp_path)
     task_id = store.create_task("goal")
     store.add_exploration(task_id, "fact", "log: errors", None, "yields", None)
+    store.add_exploration(task_id, "finding", "analyst: defect likely", None, "yields", None)
     store.add_exploration(task_id, "finding", "PRD drafted at output/PRD.md", None, "yields", None)
+    intents = orch.plan(task_id)
+    assert [i["worker"] for i in intents] == ["reviewer"]
+
+
+def test_plan_dispatches_dashboard_after_review(tmp_path):
+    orch, store, _ = make_orchestrator(tmp_path)
+    task_id = store.create_task("goal")
+    store.add_exploration(task_id, "fact", "log: errors", None, "yields", None)
+    store.add_exploration(task_id, "finding", "analyst: defect likely", None, "yields", None)
+    store.add_exploration(task_id, "finding", "PRD drafted at output/PRD.md", None, "yields", None)
+    store.add_exploration(task_id, "finding", "lineage-check: 1 orphan findings", None, "proves", None)
     intents = orch.plan(task_id)
     assert [i["worker"] for i in intents] == ["dashboard"]
 
@@ -68,12 +80,8 @@ def test_denied_gate_blocks_worker_and_logs(tmp_path):
     assert not store.has_log("dashboard", "rendered")
 
 
-def test_demo_loop_completes_and_archives(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "output").mkdir()
-
+def _run_loop(store):
     async def run():
-        store = GraphStore(tmp_path / "test.db")
         bus = EventBus()
         gate = HITLGate(bus)
         Orchestrator(store, bus, gate)
@@ -86,13 +94,29 @@ def test_demo_loop_completes_and_archives(tmp_path, monkeypatch):
             await bus_task
         except asyncio.CancelledError:
             pass
-        return store, task_id
+        return task_id
+    return asyncio.run(run())
 
-    store, task_id = asyncio.run(run())
+
+def test_demo_loop_runs_all_workers_and_archives(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "output").mkdir()
+
+    store = GraphStore(tmp_path / "test.db")
+    task_id = _run_loop(store)
 
     task = store.get_task(task_id)
     assert task["status"] == "completed"
     assert task["completed_at"] is not None
+    node_types = [r["node_type"] for r in store.get_explorations(task_id)]
+    assert node_types.count("fact") == 1
+    assert node_types.count("hint") == 1
+    assert node_types.count("finding") == 3  # analyst, prd, reviewer
+    for actor, action in [
+        ("collector", "ingested"), ("analyst", "produced_finding"),
+        ("prd", "wrote"), ("reviewer", "checked"), ("dashboard", "rendered"),
+    ]:
+        assert store.has_log(actor, action), f"{actor} did not run"
     archived = store.con.execute(
         "SELECT * FROM archived_explorations WHERE task_id=?", (task_id,)
     ).fetchall()
@@ -100,3 +124,17 @@ def test_demo_loop_completes_and_archives(tmp_path, monkeypatch):
     assert (tmp_path / "output" / "PRD.md").exists()
     assert (tmp_path / "output" / "dashboard.md").exists()
     assert store.has_log("orchestrator", "task_completed")
+
+
+def test_second_task_in_same_store_also_completes(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "output").mkdir()
+
+    store = GraphStore(tmp_path / "test.db")
+    first = _run_loop(store)
+    second = _run_loop(store)
+
+    assert store.get_task(first)["status"] == "completed"
+    assert store.get_task(second)["status"] == "completed"
+    assert store.has_log("dashboard", "rendered", first)
+    assert store.has_log("dashboard", "rendered", second)

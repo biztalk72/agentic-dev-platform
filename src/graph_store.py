@@ -160,11 +160,18 @@ class GraphStore:
         }
 
     # ── Audit ────────────────────────────────────────────────────────────
-    def has_log(self, actor: str, action: str) -> bool:
-        row = self.con.execute(
-            "SELECT 1 FROM audit_log WHERE actor=? AND action=? LIMIT 1",
-            (actor, action),
-        ).fetchone()
+    def has_log(self, actor: str, action: str, task_id: Optional[int] = None) -> bool:
+        if task_id is None:
+            row = self.con.execute(
+                "SELECT 1 FROM audit_log WHERE actor=? AND action=? LIMIT 1",
+                (actor, action),
+            ).fetchone()
+        else:
+            row = self.con.execute(
+                "SELECT 1 FROM audit_log WHERE actor=? AND action=?"
+                " AND json_extract(detail_json,'$.task_id')=? LIMIT 1",
+                (actor, action, task_id),
+            ).fetchone()
         return row is not None
 
     def log(self, actor: str, action: str, detail: Any = None):
