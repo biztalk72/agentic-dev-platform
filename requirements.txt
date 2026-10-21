@@ -1,1 +1,2 @@
-flask==3.1.0
+# Runtime uses the Python 3.12 standard library only. Test dependency below.
+pytest==8.3.4

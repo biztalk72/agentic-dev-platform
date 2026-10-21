@@ -39,7 +39,7 @@ Graph mutation -> wake orchestrator -> dispatch intent -> worker executes with r
 All other operations run automatically. Gates are configurable per project.
 
 ## 8. Tech Stack (MVP)
-- Backend: Python 3.12, FastAPI, asyncio.
+- Backend: Python 3.12, asyncio, standard library only (FastAPI is a future candidate for the API layer).
 - Graph store: SQLite (swappable to PostgreSQL).
 - LLM: pluggable provider (Anthropic Claude primary for Claude Code compatibility).
 - VLM: same provider, frame-summary endpoint.
