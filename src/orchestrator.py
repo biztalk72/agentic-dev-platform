@@ -28,7 +28,7 @@ class Orchestrator:
         task = self.store.get_task(task_id)
         if not task or task["status"] != "running":
             return
-        if not self.store.has_log("dashboard", "rendered"):
+        if not self.store.has_log("dashboard", "rendered", task_id):
             return
         self.store.archive_task(task_id)
         self.store.log("orchestrator", "task_completed", {"task_id": task_id})
@@ -37,18 +37,22 @@ class Orchestrator:
     def plan(self, task_id: int) -> list[dict]:
         """Read exploration graph + shared todo, emit intents in dependency order."""
         rows = self.store.get_explorations(task_id)
+        findings = [r["content"] for r in rows if r["node_type"] == "finding"]
         has_fact = any(r["node_type"] == "fact" for r in rows)
-        has_finding = any(r["node_type"] == "finding" for r in rows)
-        has_prd = any(r["node_type"] == "finding" and "PRD" in r["content"] for r in rows)
+        has_analysis = any(f.startswith("analyst:") for f in findings)
+        has_prd = any("PRD drafted" in f for f in findings)
+        has_review = any(f.startswith("lineage-check:") for f in findings)
 
         intents = []
         if not has_fact:
             intents.append({"worker": "collector", "intent": "ingest sample log + VLM frame summary", "op": "ingest"})
-        if has_fact and not has_finding:
+        if has_fact and not has_analysis:
+            intents.append({"worker": "analyst", "intent": "cross-reference facts into findings", "op": "analyze"})
+        if has_analysis and not has_prd:
             intents.append({"worker": "prd", "intent": "draft PRD from collected facts", "op": "write_file"})
-        if has_finding and not has_prd:
+        if has_prd and not has_review:
             intents.append({"worker": "reviewer", "intent": "lineage-check PRD against findings", "op": "review"})
-        if has_prd and not self.store.has_log("dashboard", "rendered"):
+        if has_review and not self.store.has_log("dashboard", "rendered", task_id):
             intents.append({"worker": "dashboard", "intent": "render project state from asset graph", "op": "render"})
         return intents
 

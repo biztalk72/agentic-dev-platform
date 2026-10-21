@@ -78,7 +78,7 @@ class DashboardWorker:
         for r in store.get_explorations(task_id):
             lines.append(f"- ({r['node_type']}) {r['content']}")
         (OUT / "dashboard.md").write_text("\n".join(lines))
-        store.log("dashboard", "rendered", {"path": str(OUT / "dashboard.md")})
+        store.log("dashboard", "rendered", {"path": str(OUT / "dashboard.md"), "task_id": task_id})
 
 
 WORKERS: dict[str, Worker] = {

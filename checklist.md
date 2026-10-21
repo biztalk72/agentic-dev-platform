@@ -7,3 +7,10 @@
 - [x] CI(deploy-pages.yml)에 pytest 단계 추가
 - [x] pytest 전체 통과(16 passed) + 데모 실행으로 task `completed` 확인
 - [x] 커밋 분리(아카이브 수정 / 의존성·문서 / 테스트·CI) 후 push, PR #2 생성
+
+# 잔여 quirk 해소 (2026-10-22)
+
+- [x] plan() 플로우를 collector → analyst → prd → reviewer → dashboard로 재정렬 (analyst·reviewer 미실행 해소)
+- [x] dashboard 렌더 로그 per-task 스코프 (`has_log`에 task_id 인자, 같은 DB 재실행 지원)
+- [x] 테스트 갱신·추가 (18 passed) + 기존 DB 재사용 데모로 5개 워커 실행 확인
+- [ ] push, PR 생성·머지, CI 확인
