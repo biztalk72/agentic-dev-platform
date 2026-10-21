@@ -6,4 +6,4 @@
 - [x] tests/ 추가: GraphStore(dedup·아카이브), HITLGate(승인·거부·타임아웃), Orchestrator(intent 순서·게이트 거부·E2E 완료)
 - [x] CI(deploy-pages.yml)에 pytest 단계 추가
 - [x] pytest 전체 통과(16 passed) + 데모 실행으로 task `completed` 확인
-- [ ] 커밋 분리(아카이브 수정 / 의존성·문서 / 테스트·CI) 후 push, PR 생성
+- [x] 커밋 분리(아카이브 수정 / 의존성·문서 / 테스트·CI) 후 push, PR #2 생성
