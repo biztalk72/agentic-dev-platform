@@ -2,7 +2,7 @@ name: Deploy Dashboard to GitHub Pages
 
 on:
   push:
-    branches: [grok-demo]
+    branches: [main]
     paths: ['web/**', 'src/**']
   workflow_dispatch:
 
